@@ -1,0 +1,103 @@
+CREATE TYPE user_role AS ENUM ('admin', 'editor', 'viewer');
+CREATE TYPE subscription_status AS ENUM ('active', 'canceled', 'pending');
+CREATE TYPE note_type AS ENUM ('sermon', 'small_group', 'prayer', 'devotion');
+
+CREATE TABLE user (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    encrypted_password TEXT,
+    role user_role NOT NULL DEFAULT 'viewer',
+    language_preference TEXT NOT NULL DEFAULT 'en',
+    email_verified BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE church (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    published_church_name TEXT NOT NULL,
+    church_code TEXT UNIQUE NOT NULL,
+    branding TEXT,
+    website_url TEXT,
+    street_address TEXT NOT NULL,
+    city TEXT NOT NULL,
+    postal_code TEXT,
+    state TEXT,
+    country TEXT NOT NULL,
+    default_language TEXT NOT NULL DEFAULT 'en',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE church_membership (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+    church_id UUID NOT NULL REFERENCES church(id) ON DELETE CASCADE,
+    role user_role NOT NULL DEFAULT 'viewer',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, church_id)
+);
+
+CREATE TABLE church_setting (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    church_id UUID NOT NULL REFERENCES church(id) ON DELETE CASCADE,
+    setting_key TEXT NOT NULL,
+    setting_value JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(church_id, setting_key)
+);
+
+CREATE TABLE block (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    church_id UUID NOT NULL REFERENCES church(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE note (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    type note_type NOT NULL,
+    note_content TEXT,
+    activation_date TIMESTAMP WITH TIME ZONE,
+    external_url TEXT,
+    block_id UUID NOT NULL REFERENCES block(id),
+    church_id UUID NOT NULL REFERENCES church(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE comment (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    note_id UUID NOT NULL REFERENCES note(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES user(id),
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE note_metric (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    note_id UUID NOT NULL REFERENCES note(id) ON DELETE CASCADE,
+    views_count INTEGER NOT NULL DEFAULT 0,
+    likes_count INTEGER NOT NULL DEFAULT 0,
+    last_viewed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(note_id)
+);
+
+CREATE TABLE subscription (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    church_id UUID NOT NULL REFERENCES church(id) ON DELETE CASCADE,
+    plan_name TEXT NOT NULL,
+    status subscription_status NOT NULL DEFAULT 'pending',
+    activation_date TIMESTAMP WITH TIME ZONE,
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE,
+    payment_details JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(church_id)
+);
